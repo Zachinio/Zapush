@@ -36,8 +36,8 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                     "public class Bla {" +
                     "        String mText = \"hello member\";" +
                     "    public void fire(Context context){" +
-                    "        String text = \"hello\";" +
-                    "        Toast.makeText(context,mText,Toast.LENGTH_LONG).show();" +
+                    "        String text = new String(\"hello\");" +
+                    "        Toast.makeText(context,text,Toast.LENGTH_LONG).show();" +
                     "    }" +
                     "}"
         )

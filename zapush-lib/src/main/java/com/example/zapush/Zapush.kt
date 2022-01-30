@@ -1,6 +1,5 @@
 package com.example.zapush
 
-import android.os.Build
 import com.example.zapush.models.Variable
 import com.example.zapush.utils.ReflectionUtils
 import com.example.zapush.utils.Utils
@@ -10,10 +9,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.body.VariableDeclarator
-import com.github.javaparser.ast.expr.MethodCallExpr
-import com.github.javaparser.ast.expr.NameExpr
-import com.github.javaparser.ast.expr.StringLiteralExpr
-import com.github.javaparser.ast.expr.VariableDeclarationExpr
+import com.github.javaparser.ast.expr.*
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.utils.SourceRoot
 import java.io.File
@@ -78,7 +74,6 @@ class Zapush {
         return value.javaClass
     }
 
-
     private fun checkParsed(parse: CompilationUnit?) {
         if (parse == null || parse.parsed.name != "PARSED") {
             throw Utils.exceptionMessage("Java file can't be parsed")
@@ -104,6 +99,12 @@ class Zapush {
 
             when (val varValueExpr = variable.initializer.get()) {
                 is StringLiteralExpr -> varValue = varValueExpr.value
+                is ObjectCreationExpr -> {
+                    varValue = ReflectionUtils.createInstance(
+                        executeClassCall(varValueExpr.typeAsString),
+                        varValueExpr.arguments, args, parse!!
+                    )
+                }
             }
             val classObj = varValue?.let { it::class.java } ?: run { null }
             args[varName] = Variable(varName, varValue, classObj)
@@ -119,7 +120,7 @@ class Zapush {
             if (scope is MethodCallExpr) {
                 methodObjInstance = executeMethodCall(scope.asMethodCallExpr())
             } else if (scope is NameExpr) {
-                methodObjInstance = executeClassCall(scope.asNameExpr())
+                methodObjInstance = executeClassCall(scope.nameAsString)
             }
         }
         val methodClass = if (methodObjInstance is Class<*>) {
@@ -150,14 +151,17 @@ class Zapush {
         }
     }
 
-    private fun executeClassCall(nameExpr: NameExpr): Class<*> {
+    private fun executeClassCall(className: String): Class<*> {
         val import = parse!!.imports.find { import ->
-            import.name.identifier == nameExpr.nameAsString
+            import.name.identifier == className
         }
         //TODO add search for classes in Zapush or inner classes
-
-        import
-            ?: throw Utils.exceptionMessage("Couldn't find class with name ${nameExpr.nameAsString}")
-        return Class.forName(import.nameAsString)
+        if (import != null) {
+            return Class.forName(import.nameAsString)
+        }
+        ReflectionUtils.getBuiltClass(className)?.let {
+            return it
+        }
+        throw Utils.exceptionMessage("Couldn't find class with name $className")
     }
 }

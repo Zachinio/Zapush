@@ -129,4 +129,41 @@ object ReflectionUtils {
         return argsMatched.toArray()
     }
 
+    fun createInstance(
+        classObj: Class<*>,
+        arguments: NodeList<Expression>,
+        vars: HashMap<String, Variable>,
+        parse: CompilationUnit
+    ): Any? {
+        val argumentsClasses = arguments.map { expression ->
+            getClassByArg(expression, vars, parse.imports)
+        }
+        val constructors = classObj.constructors.filter { constructor ->
+            if (constructor.parameterTypes.size != arguments.size) {
+                return@filter false
+            }
+            constructor.parameterTypes.forEachIndexed { index, type ->
+                argumentsClasses[index]?.let {
+                    if (!type.equals(arguments[index]::class.java)
+                        && !type.isAssignableFrom(it)
+                    ) {
+                        return@filter false
+                    }
+                }
+            }
+            return@filter true
+        }
+        if (constructors.isEmpty()) {
+            throw Utils.exceptionMessage("Failed to find constructor for ${classObj.name}")
+        }
+        return constructors[0].newInstance(*getMethodArgs(arguments, vars, parse.imports))
+    }
+
+    fun getBuiltClass(className: String): Class<*>? {
+        return when (className) {
+            "String" -> Class.forName("java.lang.String")
+            else -> null
+        }
+    }
+
 }
