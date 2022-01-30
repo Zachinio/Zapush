@@ -83,7 +83,7 @@ object ReflectionUtils {
         return when (expression) {
             is NameExpr -> vars[expression.nameAsString]!!.instance
             is StringLiteralExpr -> expression.value
-            is FieldAccessExpr -> getField(expression, vars, imports).get(null)
+            is FieldAccessExpr -> getFieldValue(expression, vars, imports)
             else -> throw Utils.exceptionMessage("Class by arg failed - can't find class of arg")
         }
     }
@@ -103,6 +103,18 @@ object ReflectionUtils {
         throw Utils.exceptionMessage("getfield failed")
     }
 
+    private fun getFieldValue(
+        fieldAccessExpr: FieldAccessExpr,
+        vars: HashMap<String, Variable>,
+        imports: NodeList<ImportDeclaration>
+    ): Any? {
+        val field = getField(fieldAccessExpr, vars, imports)
+        if(fieldAccessExpr.scope is NameExpr){
+            return field.get(null)
+        }
+        return field.get(null)
+    }
+
     fun getMethodArgs(
         methodArgs: NodeList<Expression>,
         vars: java.util.HashMap<String, Variable>,
@@ -110,7 +122,7 @@ object ReflectionUtils {
     ): Array<Any> {
         val argsMatched = arrayListOf<Any?>()
         methodArgs.forEach { parameter ->
-            argsMatched.add(getMethodArgValue(parameter,vars,imports))
+            argsMatched.add(getMethodArgValue(parameter, vars, imports))
         }
         return argsMatched.toArray()
     }
