@@ -41,17 +41,19 @@ object ReflectionUtils {
 
     private fun findMatchedMethods(
         foundMethods: List<Method>,
-        arguments: List<Class<*>>
+        arguments: List<Class<*>?>
     ): List<Method> {
         return foundMethods.filter { method ->
             if (method.parameterTypes.size != arguments.size) {
                 return@filter false
             }
             method.parameterTypes.forEachIndexed { index, parameter ->
-                if (!parameter.equals(arguments[index])
-                    && !parameter.isAssignableFrom(arguments[index])
-                ) {
-                    return@filter false
+                arguments[index]?.let {
+                    if (!parameter.equals(arguments[index])
+                        && !parameter.isAssignableFrom(it)
+                    ) {
+                        return@filter false
+                    }
                 }
             }
             return@filter true
@@ -62,7 +64,7 @@ object ReflectionUtils {
         expression: Expression,
         vars: HashMap<String, Variable>,
         imports: NodeList<ImportDeclaration>
-    ): Class<*> {
+    ): Class<*>? {
         return when (expression) {
             is NameExpr -> vars[expression.asNameExpr().nameAsString]!!.className
             is StringLiteralExpr -> String::class.java
@@ -109,7 +111,7 @@ object ReflectionUtils {
         imports: NodeList<ImportDeclaration>
     ): Any? {
         val field = getField(fieldAccessExpr, vars, imports)
-        if(fieldAccessExpr.scope is NameExpr){
+        if (fieldAccessExpr.scope is NameExpr) {
             return field.get(null)
         }
         return field.get(null)

@@ -1,8 +1,6 @@
 package com.example.zapush
 
-import android.annotation.SuppressLint
 import android.os.Build
-import androidx.annotation.RequiresApi
 import com.example.zapush.models.Variable
 import com.example.zapush.utils.ReflectionUtils
 import com.example.zapush.utils.Utils
@@ -11,6 +9,8 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.NameExpr
+import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.expr.VariableDeclarationExpr
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.utils.SourceRoot
 import java.io.File
@@ -82,22 +82,33 @@ class Zapush {
         }
     }
 
-    @SuppressLint("NewApi")
     private fun executeLines(foundMethod: MethodDeclaration) {
         val methodCode = foundMethod.body.get()
         val codeLines = methodCode.statements.filterIsInstance<ExpressionStmt>()
 
         codeLines.forEach { codeLine ->
             when (val expression = codeLine.expression) {
+                is VariableDeclarationExpr -> executeVariableDeclare(expression)
                 is MethodCallExpr -> executeMethodCall(expression)
             }
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.N)
+    private fun executeVariableDeclare(expression: VariableDeclarationExpr) {
+        expression.variables.forEach { variable ->
+            val varName = variable.nameAsString
+            var varValue: Any? = null
+
+            when (val varValueExpr = variable.initializer.get()) {
+                is StringLiteralExpr -> varValue = varValueExpr.value
+            }
+            val classObj = varValue?.let { it::class.java } ?: run { null }
+            args[varName] = Variable(varName, varValue, classObj)
+        }
+    }
+
     private fun executeMethodCall(expr: MethodCallExpr): Any? {
         var methodObjInstance: Any? = null
-        var methodName: Any? = null
 
         if (expr.hasScope()) {
             val scope = expr.scope.get()
@@ -123,20 +134,17 @@ class Zapush {
         )
 
         /* static method invokation */
-        if (methodObjInstance is Class<*>) {
-            return method.invoke(
+        return if (methodObjInstance is Class<*>) {
+            method.invoke(
                 null,
                 *ReflectionUtils.getMethodArgs(expr.arguments!!, args, parse!!.imports)
             )
         } else {
-            return method.invoke(
+            method.invoke(
                 methodObjInstance,
                 *ReflectionUtils.getMethodArgs(expr.arguments!!, args, parse!!.imports)
             )
         }
-
-
-        return null
     }
 
     private fun executeClassCall(nameExpr: NameExpr): Class<*> {
@@ -147,6 +155,6 @@ class Zapush {
 
         import
             ?: throw Utils.exceptionMessage("Couldn't find class with name ${nameExpr.nameAsString}")
-        return Class.forName(import!!.nameAsString)
+        return Class.forName(import.nameAsString)
     }
 }
