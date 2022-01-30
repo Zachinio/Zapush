@@ -1,2 +1,2 @@
 # Zapush
-A java Library to execute Java code at runtime
+A Kotlin Library to execute Java code at runtime
