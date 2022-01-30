@@ -30,19 +30,16 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
         file.createNewFile()
         file.writeText(
-            "package com.example.zapush;\n" +
-                    "\n" +
-                    "import android.content.Context;\n" +
-                    "import android.widget.Toast;\n" +
-                    "\n" +
-                    "public class Bla {\n" +
-                    "    \n" +
-                    "    public void fire(Context context){\n" +
-                    "        String text = \"hello\";\n" +
-                    "        Toast.makeText(context,text,Toast.LENGTH_LONG).show();\n" +
-                    "    }\n" +
-                    "}\n" +
-                    "\n"
+            "package com.example.zapush;" +
+                    "import android.content.Context;" +
+                    "import android.widget.Toast;" +
+                    "public class Bla {" +
+                    "        String mText = \"hello member\";" +
+                    "    public void fire(Context context){" +
+                    "        String text = \"hello\";" +
+                    "        Toast.makeText(context,mText,Toast.LENGTH_LONG).show();" +
+                    "    }" +
+                    "}"
         )
     }
 }

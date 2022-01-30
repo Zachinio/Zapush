@@ -5,8 +5,11 @@ import com.example.zapush.models.Variable
 import com.example.zapush.utils.ReflectionUtils
 import com.example.zapush.utils.Utils
 import com.github.javaparser.ast.CompilationUnit
+import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
+import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
+import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
@@ -29,9 +32,6 @@ class Zapush {
         methodName: String,
         vars: HashMap<String, Any>
     ) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            throw Utils.exceptionMessage("Android OS version is not supported , min is 24")
-        }
         if (!javaFile.exists() || javaFile.parent == null) {
             throw Utils.exceptionMessage("Java file not found")
         }
@@ -61,6 +61,9 @@ class Zapush {
         vars.iterator().forEach {
             args[it.key] = Variable(it.key, it.value, getVariableClass(it.key, it.value))
         }
+        foundClass?.members?.filterIsInstance<FieldDeclaration>()?.forEach { fieldDeclaration ->
+            executeVariableDeclare(fieldDeclaration.variables)
+        }
     }
 
     private fun getVariableClass(key: String, value: Any): Class<*> {
@@ -88,14 +91,14 @@ class Zapush {
 
         codeLines.forEach { codeLine ->
             when (val expression = codeLine.expression) {
-                is VariableDeclarationExpr -> executeVariableDeclare(expression)
+                is VariableDeclarationExpr -> executeVariableDeclare(expression.variables)
                 is MethodCallExpr -> executeMethodCall(expression)
             }
         }
     }
 
-    private fun executeVariableDeclare(expression: VariableDeclarationExpr) {
-        expression.variables.forEach { variable ->
+    private fun executeVariableDeclare(variables: NodeList<VariableDeclarator>) {
+        variables.forEach { variable ->
             val varName = variable.nameAsString
             var varValue: Any? = null
 
