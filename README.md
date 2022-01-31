@@ -6,17 +6,6 @@ Due to Google Play policies, updating android apps code is a violation, however 
 Therefore, Zapush created to execute plain text Java code. This mechanism uses reflection techniques to run the dynamic Java code at runtime.
 
 ## Usage
-Create a Zapush object and pass:
-```kotlin
- Zapush().execute(
-                File(filesDir, "Bla.java"),                               /* a file contains the java code */
-                "Bla",                                                    /* the class name */
-                "fire",                                                   /* the method name to run */
-                hashMapOf("context" to (applicationContext as Context))   /* set of global parameters that can be used in the executed code */
-            )
-```
-
-## Example
 Let's say I want to run this Java code:
 
 <details><summary>Bla.java</summary>
@@ -52,6 +41,33 @@ public class Bla {
 ```
  </p>
 </details>
+
+ Create a Zapush object and pass:
+```kotlin
+ Zapush().execute(
+                File(filesDir, "Bla.java"),                               /* a file contains the java code */
+                "Bla",                                                    /* the class name */
+                "fire",                                                   /* the method name to run */
+                hashMapOf("context" to (applicationContext as Context))   /* set of global parameters that can be used in the executed code */
+            )
+```
+
+
+## Features
+
+1. Method invocations
+2. Field access
+3. Variable declarations
+4. Members declarations
+5. Static & non-static classes usage
+
+#Missing
+
+1. If conditions
+2. For & while loops
+3. callbacks
+
+
 
 
 
