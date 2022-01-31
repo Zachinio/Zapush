@@ -1,16 +1,12 @@
 package com.example.zapush.utils
 
 import com.example.zapush.models.Variable
-import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.ImportDeclaration
 import com.github.javaparser.ast.NodeList
-import com.github.javaparser.ast.expr.Expression
-import com.github.javaparser.ast.expr.FieldAccessExpr
-import com.github.javaparser.ast.expr.NameExpr
-import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.body.VariableDeclarator
+import com.github.javaparser.ast.expr.*
 import java.lang.reflect.Field
 import java.lang.reflect.Method
-import kotlin.collections.HashMap
 
 object ReflectionUtils {
 
@@ -19,10 +15,10 @@ object ReflectionUtils {
         name: String,
         arguments: NodeList<Expression>,
         vars: HashMap<String, Variable>,
-        parse: CompilationUnit
+        imports: NodeList<ImportDeclaration>
     ): Method {
         val argumentsClasses = arguments.map { expression ->
-            getClassByArg(expression, vars, parse.imports)
+            getClassByArg(expression, vars, imports)
         }
         var foundMethods = classObj.methods.filter { method ->
             method.name == name
@@ -68,6 +64,10 @@ object ReflectionUtils {
         return when (expression) {
             is NameExpr -> vars[expression.asNameExpr().nameAsString]!!.className
             is StringLiteralExpr -> String::class.java
+            is MethodCallExpr -> {
+                val res = executeMethodCall(expression, vars, imports)
+                return res?.let { it::class.java } ?: run { null }
+            }
             is FieldAccessExpr -> getField(
                 expression.asFieldAccessExpr(),
                 vars,
@@ -86,7 +86,7 @@ object ReflectionUtils {
             is NameExpr -> vars[expression.nameAsString]!!.instance
             is StringLiteralExpr -> expression.value
             is FieldAccessExpr -> getFieldValue(expression, vars, imports)
-            else -> throw Utils.exceptionMessage("Class by arg failed - can't find class of arg")
+            else -> throw Utils.exceptionMessage("Method by arg failed - can't find class of arg")
         }
     }
 
@@ -117,7 +117,7 @@ object ReflectionUtils {
         return field.get(null)
     }
 
-    fun getMethodArgs(
+    private fun getMethodArgs(
         methodArgs: NodeList<Expression>,
         vars: java.util.HashMap<String, Variable>,
         imports: NodeList<ImportDeclaration>
@@ -133,10 +133,10 @@ object ReflectionUtils {
         classObj: Class<*>,
         arguments: NodeList<Expression>,
         vars: HashMap<String, Variable>,
-        parse: CompilationUnit
+        imports: NodeList<ImportDeclaration>
     ): Any? {
         val argumentsClasses = arguments.map { expression ->
-            getClassByArg(expression, vars, parse.imports)
+            getClassByArg(expression, vars, imports)
         }
         val constructors = classObj.constructors.filter { constructor ->
             if (constructor.parameterTypes.size != arguments.size) {
@@ -156,14 +156,98 @@ object ReflectionUtils {
         if (constructors.isEmpty()) {
             throw Utils.exceptionMessage("Failed to find constructor for ${classObj.name}")
         }
-        return constructors[0].newInstance(*getMethodArgs(arguments, vars, parse.imports))
+        return constructors[0].newInstance(*getMethodArgs(arguments, vars, imports))
     }
 
-    fun getBuiltClass(className: String): Class<*>? {
+    private fun getBuiltClass(className: String): Class<*>? {
         return when (className) {
             "String" -> Class.forName("java.lang.String")
             else -> null
         }
+    }
+
+    fun executeMethodCall(
+        expr: MethodCallExpr, vars: HashMap<String, Variable>,
+        imports: NodeList<ImportDeclaration>
+    ): Any? {
+        var methodObjInstance: Any? = null
+
+        if (expr.hasScope()) {
+            val scope = expr.scope.get()
+
+            if (scope is MethodCallExpr) {
+                methodObjInstance = executeMethodCall(scope.asMethodCallExpr(), vars, imports)
+            } else if (scope is NameExpr) {
+                methodObjInstance = executeClassCall(scope.nameAsString, imports,vars)
+            }
+        }
+        val methodClass = if (methodObjInstance is Class<*>) {
+            methodObjInstance
+        } else {
+            methodObjInstance!!::class.java
+        }
+
+        val method = getMethod(
+            methodClass,
+            expr.nameAsString,
+            expr.arguments,
+            vars,
+            imports,
+        )
+
+        /* static method invokation */
+        return if (methodObjInstance is Class<*>) {
+            method.invoke(
+                null,
+                *getMethodArgs(expr.arguments!!, vars, imports)
+            )
+        } else {
+            method.invoke(
+                methodObjInstance,
+                *getMethodArgs(expr.arguments!!, vars, imports)
+            )
+        }
+    }
+
+    internal fun executeVariableDeclare(
+        variables: NodeList<VariableDeclarator>, vars: HashMap<String, Variable>,
+        imports: NodeList<ImportDeclaration>
+    ) {
+        variables.forEach { variable ->
+            val varName = variable.nameAsString
+            var varValue: Any? = null
+
+            when (val varValueExpr = variable.initializer.get()) {
+                is StringLiteralExpr -> varValue = varValueExpr.value
+                is ObjectCreationExpr -> {
+                    varValue = createInstance(
+                        executeClassCall(varValueExpr.typeAsString, imports,vars),
+                        varValueExpr.arguments, vars, imports
+                    )
+                }
+            }
+            val classObj = varValue?.let { it::class.java } ?: run { null }
+            vars[varName] = Variable(varName, varValue, classObj)
+        }
+    }
+
+    private fun executeClassCall(
+        className: String, imports: NodeList<ImportDeclaration>, vars: HashMap<String, Variable>
+    ): Class<*> {
+        val import = imports.find { import ->
+            import.name.identifier == className
+        }
+        //TODO add search for classes in Zapush or inner classes
+        if (import != null) {
+            return Class.forName(import.nameAsString)
+        }
+        getBuiltClass(className)?.let {
+            return it
+        }
+        if (vars.containsKey(className)) {
+            return vars[className]?.instance!!::class.java
+        }
+        throw Utils.exceptionMessage("Couldn't find class with name $className")
     }
 
 }

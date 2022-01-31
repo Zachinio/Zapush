@@ -30,15 +30,31 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
         file.createNewFile()
         file.writeText(
-            "package com.example.zapush;" +
-                    "import android.content.Context;" +
-                    "import android.widget.Toast;" +
-                    "public class Bla {" +
-                    "        String mText = \"hello member\";" +
-                    "    public void fire(Context context){" +
-                    "        String text = new String(\"hello\");" +
-                    "        Toast.makeText(context,text,Toast.LENGTH_LONG).show();" +
-                    "    }" +
+            "package com.example.zapush;\n" +
+                    "\n" +
+                    "import android.content.Context;\n" +
+                    "import android.widget.Toast;\n" +
+                    "\n" +
+                    "import java.io.File;\n" +
+                    "import java.io.FileWriter;\n" +
+                    "import java.io.IOException;\n" +
+                    "import java.util.Scanner;\n" +
+                    "\n" +
+                    "public class Bla {\n" +
+                    "    String mText = \"getting coins prices\";\n" +
+                    "\n" +
+                    "    public void fire(Context context) throws IOException {\n" +
+                    "        String text = new String(mText);\n" +
+                    "        \n" +
+                    "        File fileCheck = new File(context.getFilesDir(),\"test file\");\n" +
+                    "        fileCheck.createNewFile();\n" +
+                    "        FileWriter fileWriter = new FileWriter(fileCheck);\n" +
+                    "        fileWriter.write(\"from file\");\n" +
+                    "\n" +
+                    "        Scanner myReader = new Scanner(fileCheck);\n" +
+                    "        \n" +
+                    "        Toast.makeText(context, myReader.nextLine(), Toast.LENGTH_LONG).show();\n" +
+                    "    }\n" +
                     "}"
         )
     }

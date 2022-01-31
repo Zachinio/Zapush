@@ -4,12 +4,11 @@ import com.example.zapush.models.Variable
 import com.example.zapush.utils.ReflectionUtils
 import com.example.zapush.utils.Utils
 import com.github.javaparser.ast.CompilationUnit
-import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
-import com.github.javaparser.ast.body.VariableDeclarator
-import com.github.javaparser.ast.expr.*
+import com.github.javaparser.ast.expr.MethodCallExpr
+import com.github.javaparser.ast.expr.VariableDeclarationExpr
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.utils.SourceRoot
 import java.io.File
@@ -58,7 +57,11 @@ class Zapush {
             args[it.key] = Variable(it.key, it.value, getVariableClass(it.key, it.value))
         }
         foundClass?.members?.filterIsInstance<FieldDeclaration>()?.forEach { fieldDeclaration ->
-            executeVariableDeclare(fieldDeclaration.variables)
+            ReflectionUtils.executeVariableDeclare(
+                fieldDeclaration.variables,
+                args,
+                parse!!.imports
+            )
         }
     }
 
@@ -86,82 +89,17 @@ class Zapush {
 
         codeLines.forEach { codeLine ->
             when (val expression = codeLine.expression) {
-                is VariableDeclarationExpr -> executeVariableDeclare(expression.variables)
-                is MethodCallExpr -> executeMethodCall(expression)
+                is VariableDeclarationExpr -> ReflectionUtils.executeVariableDeclare(
+                    expression.variables,
+                    args,
+                    parse!!.imports
+                )
+                is MethodCallExpr -> ReflectionUtils.executeMethodCall(
+                    expression,
+                    args,
+                    parse!!.imports
+                )
             }
         }
-    }
-
-    private fun executeVariableDeclare(variables: NodeList<VariableDeclarator>) {
-        variables.forEach { variable ->
-            val varName = variable.nameAsString
-            var varValue: Any? = null
-
-            when (val varValueExpr = variable.initializer.get()) {
-                is StringLiteralExpr -> varValue = varValueExpr.value
-                is ObjectCreationExpr -> {
-                    varValue = ReflectionUtils.createInstance(
-                        executeClassCall(varValueExpr.typeAsString),
-                        varValueExpr.arguments, args, parse!!
-                    )
-                }
-            }
-            val classObj = varValue?.let { it::class.java } ?: run { null }
-            args[varName] = Variable(varName, varValue, classObj)
-        }
-    }
-
-    private fun executeMethodCall(expr: MethodCallExpr): Any? {
-        var methodObjInstance: Any? = null
-
-        if (expr.hasScope()) {
-            val scope = expr.scope.get()
-
-            if (scope is MethodCallExpr) {
-                methodObjInstance = executeMethodCall(scope.asMethodCallExpr())
-            } else if (scope is NameExpr) {
-                methodObjInstance = executeClassCall(scope.nameAsString)
-            }
-        }
-        val methodClass = if (methodObjInstance is Class<*>) {
-            methodObjInstance
-        } else {
-            methodObjInstance!!::class.java
-        }
-
-        val method = ReflectionUtils.getMethod(
-            methodClass,
-            expr.nameAsString,
-            expr.arguments,
-            args,
-            parse!!,
-        )
-
-        /* static method invokation */
-        return if (methodObjInstance is Class<*>) {
-            method.invoke(
-                null,
-                *ReflectionUtils.getMethodArgs(expr.arguments!!, args, parse!!.imports)
-            )
-        } else {
-            method.invoke(
-                methodObjInstance,
-                *ReflectionUtils.getMethodArgs(expr.arguments!!, args, parse!!.imports)
-            )
-        }
-    }
-
-    private fun executeClassCall(className: String): Class<*> {
-        val import = parse!!.imports.find { import ->
-            import.name.identifier == className
-        }
-        //TODO add search for classes in Zapush or inner classes
-        if (import != null) {
-            return Class.forName(import.nameAsString)
-        }
-        ReflectionUtils.getBuiltClass(className)?.let {
-            return it
-        }
-        throw Utils.exceptionMessage("Couldn't find class with name $className")
     }
 }
