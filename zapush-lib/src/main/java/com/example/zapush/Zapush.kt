@@ -24,7 +24,7 @@ class Zapush {
     fun execute(
         javaFile: File,
         className: String,
-        methodName: String,
+        methodName: String = "main",
         vars: HashMap<String, Any>
     ) {
         if (!javaFile.exists() || javaFile.parent == null) {
