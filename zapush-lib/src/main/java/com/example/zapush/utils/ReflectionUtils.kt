@@ -65,8 +65,14 @@ object ReflectionUtils {
             is NameExpr -> vars[expression.asNameExpr().nameAsString]!!.className
             is StringLiteralExpr -> String::class.java
             is MethodCallExpr -> {
-                val res = executeMethodCall(expression, vars, imports)
-                return res?.let { it::class.java } ?: run { null }
+                // TODO HANDLE no scope
+                getMethod(
+                    getClassByArg(expression.scope.get(), vars, imports)!!,
+                    expression.nameAsString,
+                    expression.arguments,
+                    vars,
+                    imports
+                ).returnType
             }
             is FieldAccessExpr -> getField(
                 expression.asFieldAccessExpr(),
@@ -85,6 +91,7 @@ object ReflectionUtils {
         return when (expression) {
             is NameExpr -> vars[expression.nameAsString]!!.instance
             is StringLiteralExpr -> expression.value
+            is MethodCallExpr -> executeMethodCall(expression, vars, imports)
             is FieldAccessExpr -> getFieldValue(expression, vars, imports)
             else -> throw Utils.exceptionMessage("Method by arg failed - can't find class of arg")
         }
@@ -178,7 +185,11 @@ object ReflectionUtils {
             if (scope is MethodCallExpr) {
                 methodObjInstance = executeMethodCall(scope.asMethodCallExpr(), vars, imports)
             } else if (scope is NameExpr) {
-                methodObjInstance = executeClassCall(scope.nameAsString, imports,vars)
+                methodObjInstance = if (vars.containsKey(scope.nameAsString)) {
+                    vars[scope.nameAsString]?.instance!!
+                } else {
+                    executeClassCall(scope.nameAsString, imports, vars)
+                }
             }
         }
         val methodClass = if (methodObjInstance is Class<*>) {
@@ -195,13 +206,14 @@ object ReflectionUtils {
             imports,
         )
 
-        /* static method invokation */
         return if (methodObjInstance is Class<*>) {
+            /* static method invokation */
             method.invoke(
                 null,
                 *getMethodArgs(expr.arguments!!, vars, imports)
             )
         } else {
+            /* instance method invokation */
             method.invoke(
                 methodObjInstance,
                 *getMethodArgs(expr.arguments!!, vars, imports)
@@ -221,7 +233,7 @@ object ReflectionUtils {
                 is StringLiteralExpr -> varValue = varValueExpr.value
                 is ObjectCreationExpr -> {
                     varValue = createInstance(
-                        executeClassCall(varValueExpr.typeAsString, imports,vars),
+                        executeClassCall(varValueExpr.typeAsString, imports, vars),
                         varValueExpr.arguments, vars, imports
                     )
                 }
@@ -243,9 +255,6 @@ object ReflectionUtils {
         }
         getBuiltClass(className)?.let {
             return it
-        }
-        if (vars.containsKey(className)) {
-            return vars[className]?.instance!!::class.java
         }
         throw Utils.exceptionMessage("Couldn't find class with name $className")
     }

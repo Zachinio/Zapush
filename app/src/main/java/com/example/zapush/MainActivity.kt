@@ -46,10 +46,12 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                     "    public void fire(Context context) throws IOException {\n" +
                     "        String text = new String(mText);\n" +
                     "        \n" +
-                    "        File fileCheck = new File(context.getFilesDir(),\"test file\");\n" +
+                    "        File fileCheck = new File(context.getFilesDir(),\"test_file.txt\");\n" +
                     "        fileCheck.createNewFile();\n" +
                     "        FileWriter fileWriter = new FileWriter(fileCheck);\n" +
                     "        fileWriter.write(\"from file\");\n" +
+                    "        fileWriter.flush();\n" +
+                    "        fileWriter.close();\n" +
                     "\n" +
                     "        Scanner myReader = new Scanner(fileCheck);\n" +
                     "        \n" +
