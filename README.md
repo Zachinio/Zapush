@@ -26,8 +26,13 @@ public class Bla {
     String mText = "getting coins prices";  
   
  public void fire(Context context) throws IOException {  
-        String text = new String(mText);  
-  
+  String text = new String(mText);
+  if(context.isRestricted()){
+    Toast.makeText(context, "inside", Toast.LENGTH_LONG).show();
+  } else {
+    Toast.makeText(context, "in else", Toast.LENGTH_LONG).show();
+  }
+
   File fileCheck = new File(context.getFilesDir(),"test file");  
   fileCheck.createNewFile();  
   FileWriter fileWriter = new FileWriter(fileCheck);  
