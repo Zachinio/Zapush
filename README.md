@@ -60,12 +60,12 @@ public class Bla {
 3. Variable declarations
 4. Members declarations
 5. Static & non-static classes usage
+6. If & else conditions ( without OR / AND )
 
 #Missing
 
-1. If conditions
-2. For & while loops
-3. callbacks
+1. For & while loops
+2. callbacks
 
 
 
