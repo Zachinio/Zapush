@@ -65,7 +65,7 @@ public class Bla {
 3. Variable declarations
 4. Members declarations
 5. Static & non-static classes usage
-6. If & else conditions ( without OR / AND )
+6. If & else conditions includning OR, AND , brackets
 
 #Missing
 
