@@ -45,7 +45,12 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                     "\n" +
                     "    public void fire(Context context) throws IOException {\n" +
                     "        String text = new String(mText);\n" +
-                    "        bool text2 = false;\n" +
+                    "        bool text2 = true;\n" +
+                    "        if(context.isRestricted()){\n" +
+                    "           Toast.makeText(context, \"inside\", Toast.LENGTH_LONG).show();\n" +
+                    "        } else {\n" +
+                    "           Toast.makeText(context, \"in else\", Toast.LENGTH_LONG).show();\n" +
+                    "        }\n" +
                     "        \n" +
                     "        File fileCheck = new File(context.getFilesDir(),\"test_file.txt\");\n" +
                     "        fileCheck.createNewFile();\n" +
@@ -55,8 +60,9 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                     "        fileWriter.close();\n" +
                     "\n" +
                     "        Scanner myReader = new Scanner(fileCheck);\n" +
+                    "        Toast.makeText(context, text, Toast.LENGTH_LONG).show();\n" +
+
                     "        \n" +
-                    "        Toast.makeText(context, myReader.nextLine(), Toast.LENGTH_LONG).show();\n" +
                     "    }\n" +
                     "}"
         )

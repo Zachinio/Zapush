@@ -7,9 +7,14 @@ import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
+import com.github.javaparser.ast.expr.BooleanLiteralExpr
 import com.github.javaparser.ast.expr.MethodCallExpr
+import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.VariableDeclarationExpr
+import com.github.javaparser.ast.stmt.BlockStmt
 import com.github.javaparser.ast.stmt.ExpressionStmt
+import com.github.javaparser.ast.stmt.IfStmt
+import com.github.javaparser.ast.stmt.Statement
 import com.github.javaparser.utils.SourceRoot
 import java.io.File
 import kotlin.io.path.Path
@@ -49,7 +54,7 @@ class Zapush {
         foundMethod ?: throw Utils.exceptionMessage("Failed to find method $methodName")
 
         addVars(vars)
-        executeLines(foundMethod!!)
+        executeLines(foundMethod!!.body.get())
     }
 
     private fun addVars(vars: java.util.HashMap<String, Any>) {
@@ -83,23 +88,57 @@ class Zapush {
         }
     }
 
-    private fun executeLines(foundMethod: MethodDeclaration) {
-        val methodCode = foundMethod.body.get()
-        val codeLines = methodCode.statements.filterIsInstance<ExpressionStmt>()
+    private fun executeLines(blockCode: BlockStmt) {
+        val codeLines = blockCode.statements
 
         codeLines.forEach { codeLine ->
-            when (val expression = codeLine.expression) {
-                is VariableDeclarationExpr -> ReflectionUtils.executeVariableDeclare(
-                    expression.variables,
-                    args,
-                    parse!!.imports
-                )
-                is MethodCallExpr -> ReflectionUtils.executeMethodCall(
-                    expression,
-                    args,
-                    parse!!.imports
-                )
+            when (codeLine) {
+                is ExpressionStmt -> executeExpression(codeLine)
+                is Statement -> executeStatement(codeLine)
             }
         }
+    }
+
+    private fun executeExpression(expressionStmt: ExpressionStmt) {
+        when (val expression = expressionStmt.expression) {
+            is VariableDeclarationExpr -> ReflectionUtils.executeVariableDeclare(
+                expression.variables,
+                args,
+                parse!!.imports
+            )
+            is MethodCallExpr -> ReflectionUtils.executeMethodCall(
+                expression,
+                args,
+                parse!!.imports
+            )
+        }
+    }
+
+    private fun executeStatement(statement: Statement) {
+        when (statement) {
+            is IfStmt -> executeIfStatement(statement)
+        }
+    }
+
+    private fun executeIfStatement(ifStmt: IfStmt) {
+        val condition = when (val conditionExpr = ifStmt.condition) {
+            is NameExpr -> args[conditionExpr.nameAsString]!!.instance
+            is BooleanLiteralExpr -> conditionExpr.value
+            is MethodCallExpr -> ReflectionUtils.executeMethodCall(
+                conditionExpr,
+                args,
+                parse!!.imports
+            )
+            else -> throw Utils.exceptionMessage("Failed to get condition value")
+        } as Boolean
+
+        if (condition) {
+            if (ifStmt.thenStmt != null) {
+                executeLines(ifStmt.thenStmt.asBlockStmt())
+            }
+        } else if (ifStmt.hasElseBlock()) {
+            executeLines(ifStmt.elseStmt.get().asBlockStmt())
+        }
+
     }
 }
