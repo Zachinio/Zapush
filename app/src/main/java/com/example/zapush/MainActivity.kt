@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                     "    public void fire(Context context) throws IOException {\n" +
                     "        String text = new String(mText);\n" +
                     "        bool text2 = true;\n" +
-                    "        if(context.isRestricted()){\n" +
+                    "        if((true && true)  && (true || context.isRestricted())){\n" +
                     "           Toast.makeText(context, \"inside\", Toast.LENGTH_LONG).show();\n" +
                     "        } else {\n" +
                     "           Toast.makeText(context, \"in else\", Toast.LENGTH_LONG).show();\n" +

@@ -7,10 +7,7 @@ import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
-import com.github.javaparser.ast.expr.BooleanLiteralExpr
-import com.github.javaparser.ast.expr.MethodCallExpr
-import com.github.javaparser.ast.expr.NameExpr
-import com.github.javaparser.ast.expr.VariableDeclarationExpr
+import com.github.javaparser.ast.expr.*
 import com.github.javaparser.ast.stmt.BlockStmt
 import com.github.javaparser.ast.stmt.ExpressionStmt
 import com.github.javaparser.ast.stmt.IfStmt
@@ -121,16 +118,7 @@ class Zapush {
     }
 
     private fun executeIfStatement(ifStmt: IfStmt) {
-        val condition = when (val conditionExpr = ifStmt.condition) {
-            is NameExpr -> args[conditionExpr.nameAsString]!!.instance
-            is BooleanLiteralExpr -> conditionExpr.value
-            is MethodCallExpr -> ReflectionUtils.executeMethodCall(
-                conditionExpr,
-                args,
-                parse!!.imports
-            )
-            else -> throw Utils.exceptionMessage("Failed to get condition value")
-        } as Boolean
+        val condition = getCondition(ifStmt.condition)
 
         if (condition) {
             if (ifStmt.thenStmt != null) {
@@ -140,5 +128,25 @@ class Zapush {
             executeLines(ifStmt.elseStmt.get().asBlockStmt())
         }
 
+    }
+
+    private fun getCondition(condition: Expression): Boolean {
+        return when (condition) {
+            is NameExpr -> args[condition.nameAsString]!!.instance
+            is BooleanLiteralExpr -> condition.value
+            is MethodCallExpr -> ReflectionUtils.executeMethodCall(
+                condition,
+                args,
+                parse!!.imports
+            )
+            is EnclosedExpr -> getCondition(condition.inner)
+            is BinaryExpr -> {
+                if (condition.operator.name == "OR") {
+                    return getCondition(condition.left) || getCondition(condition.right)
+                }
+                return getCondition(condition.left) && getCondition(condition.right)
+            }
+            else -> throw Utils.exceptionMessage("Failed to get condition value")
+        } as Boolean
     }
 }
