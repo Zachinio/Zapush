@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                     "\n" +
                     "    public void fire(Context context) throws IOException {\n" +
                     "        String text = new String(mText);\n" +
+                    "        bool text2 = false;\n" +
                     "        \n" +
                     "        File fileCheck = new File(context.getFilesDir(),\"test_file.txt\");\n" +
                     "        fileCheck.createNewFile();\n" +

@@ -231,6 +231,7 @@ object ReflectionUtils {
 
             when (val varValueExpr = variable.initializer.get()) {
                 is StringLiteralExpr -> varValue = varValueExpr.value
+                is BooleanLiteralExpr -> varValue = varValueExpr.value
                 is ObjectCreationExpr -> {
                     varValue = createInstance(
                         executeClassCall(varValueExpr.typeAsString, imports, vars),
