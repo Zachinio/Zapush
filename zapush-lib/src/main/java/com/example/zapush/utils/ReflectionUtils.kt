@@ -11,40 +11,6 @@ import kotlin.math.exp
 
 object ReflectionUtils {
 
-    fun executeBinaryExpression(
-        binaryExpr: BinaryExpr,
-        imports: NodeList<ImportDeclaration>,
-        vars: HashMap<String, Variable>
-    ): Any? {
-        return when (binaryExpr.operator.name) {
-            "OR" -> getCondition(binaryExpr.left, imports, vars) || getCondition(
-                binaryExpr.right,
-                imports,
-                vars
-            )
-            "AND" -> getCondition(binaryExpr.left, imports, vars) &&
-                    getCondition(binaryExpr.right, imports, vars)
-            "LESS" -> (getValueByExpression(vars, binaryExpr.left) as Int) <
-                    getValueByExpression(vars, binaryExpr.right) as Int
-            "LESS_EQUALS" -> (getValueByExpression(vars, binaryExpr.left) as Int) <=
-                    getValueByExpression(vars, binaryExpr.right) as Int
-            "GREATER" -> (getValueByExpression(vars, binaryExpr.left) as Int) >
-                    getValueByExpression(vars, binaryExpr.right) as Int
-            "GREATER_EQUALS" -> (getValueByExpression(vars, binaryExpr.left) as Int) >=
-                    getValueByExpression(vars, binaryExpr.right) as Int
-            "PLUS" -> {
-                val leftValue = getValueByExpression(vars, binaryExpr.left)
-                val rightValue = getValueByExpression(vars, binaryExpr.right)
-                return if (leftValue is Int) {
-                    leftValue + rightValue.toString().toInt()
-                } else {
-                    leftValue.toString() + rightValue
-                }
-            }
-            else -> throw Utils.exceptionMessage("Unknown binary operation ${binaryExpr.operator.name}")
-        }
-    }
-
     fun executeMethodCall(
         expr: MethodCallExpr, vars: HashMap<String, Variable>,
         imports: NodeList<ImportDeclaration>
@@ -143,6 +109,39 @@ object ReflectionUtils {
         }
     }
 
+    private fun executeBinaryExpression(
+        binaryExpr: BinaryExpr,
+        imports: NodeList<ImportDeclaration>,
+        vars: HashMap<String, Variable>
+    ): Any {
+        return when (binaryExpr.operator.name) {
+            "OR" -> getCondition(binaryExpr.left, imports, vars) || getCondition(
+                binaryExpr.right,
+                imports,
+                vars
+            )
+            "AND" -> getCondition(binaryExpr.left, imports, vars) &&
+                    getCondition(binaryExpr.right, imports, vars)
+            "LESS" -> (getValueByExpression(vars, binaryExpr.left) as Int) <
+                    getValueByExpression(vars, binaryExpr.right) as Int
+            "LESS_EQUALS" -> (getValueByExpression(vars, binaryExpr.left) as Int) <=
+                    getValueByExpression(vars, binaryExpr.right) as Int
+            "GREATER" -> (getValueByExpression(vars, binaryExpr.left) as Int) >
+                    getValueByExpression(vars, binaryExpr.right) as Int
+            "GREATER_EQUALS" -> (getValueByExpression(vars, binaryExpr.left) as Int) >=
+                    getValueByExpression(vars, binaryExpr.right) as Int
+            "PLUS" -> {
+                val leftValue = getValueByExpression(vars, binaryExpr.left)
+                val rightValue = getValueByExpression(vars, binaryExpr.right)
+                return if (leftValue is Int) {
+                    leftValue + rightValue.toString().toInt()
+                } else {
+                    leftValue.toString() + rightValue
+                }
+            }
+            else -> throw Utils.exceptionMessage("Unknown binary operation ${binaryExpr.operator.name}")
+        }
+    }
 
     private fun getMethod(
         classObj: Class<*>,
@@ -209,7 +208,7 @@ object ReflectionUtils {
                 ).returnType
             }
             is FieldAccessExpr -> getField(expression, vars, imports).type
-            is BinaryExpr -> executeBinaryExpression(expression, imports, vars)!!::class.java
+            is BinaryExpr -> executeBinaryExpression(expression, imports, vars)::class.java
             else -> throw Utils.exceptionMessage("Class by arg failed - can't find class of arg")
         }
     }

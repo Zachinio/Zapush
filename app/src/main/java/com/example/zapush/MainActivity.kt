@@ -47,11 +47,11 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                     "        String text = new String(mText);\n" +
                     "        bool text2 = true;\n" +
                     "        int i = 0;\n" +
-                    "        for(i=0;i<4;i++) {\n" +
+                    "        for(i=0;i<4;i+=2) {\n" +
                     "           Toast.makeText(context, \"inside\" + i, Toast.LENGTH_LONG).show();\n" +
                     "        }\n" +
-                    "        for(i=0;i<4;i--) {\n" +
-                    "           Toast.makeText(context, \"inside\" + i, Toast.LENGTH_LONG).show();\n" +
+                    "        for(i=4;i>0;i--) {\n" +
+                    "           Toast.makeText(context, \"inside 2nd loop \" + i, Toast.LENGTH_LONG).show();\n" +
                     "        }\n" +
                     "        \n" +
                     "        File fileCheck = new File(context.getFilesDir(),\"test_file.txt\");\n" +

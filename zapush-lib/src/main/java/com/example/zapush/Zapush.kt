@@ -148,10 +148,19 @@ class Zapush {
         /*compare statement */
         var result = getCondition(statement.compare.get(), parse!!.imports, args)
         while (result) {
-            var executed = false
             when (val updateExpr = statement.update[0]) {
                 is AssignExpr -> {
-
+                    var value =
+                        args[updateExpr.target.asNameExpr().nameAsString]!!.instance as Int
+                    value = when (updateExpr.operator.name) {
+                        "PLUS" -> value + getValueByExpression(args, updateExpr.value) as Int
+                        "MINUS" -> value - getValueByExpression(args, updateExpr.value) as Int
+                        "MULTIPLY" -> value * getValueByExpression(args, updateExpr.value) as Int
+                        "DIVIDE" -> value / getValueByExpression(args, updateExpr.value) as Int
+                        else -> throw Utils.exceptionMessage("Unknown operator name assignExpr")
+                    }
+                    executeLines(statement.body.asBlockStmt())
+                    args[updateExpr.target.asNameExpr().nameAsString]!!.instance = value
                 }
                 is UnaryExpr -> {
                     var value =
@@ -161,15 +170,17 @@ class Zapush {
                     } else {
                         value -= 1
                     }
+                    var executed = false
                     if (updateExpr.operator.isPostfix) {
                         executed = true
                         executeLines(statement.body.asBlockStmt())
                     }
                     args[updateExpr.expression.asNameExpr().nameAsString]!!.instance = value
+
+                    if (!executed) {
+                        executeLines(statement.body.asBlockStmt())
+                    }
                 }
-            }
-            if (!executed) {
-                executeLines(statement.body.asBlockStmt())
             }
             result = getCondition(statement.compare.get(), parse!!.imports, args)
         }
