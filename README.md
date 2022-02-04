@@ -66,10 +66,11 @@ public class Bla {
 4. Members declarations
 5. Static & non-static classes usage
 6. If & else conditions includning OR, AND , brackets
+7. For loops
 
 #Missing
 
-1. For & while loops
+1. while loops
 2. callbacks
 
 
