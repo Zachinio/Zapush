@@ -10,7 +10,7 @@ import java.lang.reflect.Method
 
 object ReflectionUtils {
 
-    fun getMethod(
+    private fun getMethod(
         classObj: Class<*>,
         name: String,
         arguments: NodeList<Expression>,
@@ -136,7 +136,7 @@ object ReflectionUtils {
         return argsMatched.toArray()
     }
 
-    fun createInstance(
+    private fun createInstance(
         classObj: Class<*>,
         arguments: NodeList<Expression>,
         vars: HashMap<String, Variable>,
@@ -232,6 +232,7 @@ object ReflectionUtils {
             when (val varValueExpr = variable.initializer.get()) {
                 is StringLiteralExpr -> varValue = varValueExpr.value
                 is BooleanLiteralExpr -> varValue = varValueExpr.value
+                is IntegerLiteralExpr -> varValue = varValueExpr.value.toInt()
                 is ObjectCreationExpr -> {
                     varValue = createInstance(
                         executeClassCall(varValueExpr.typeAsString, imports, vars),
