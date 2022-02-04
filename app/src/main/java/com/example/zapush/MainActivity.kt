@@ -50,6 +50,9 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                     "        for(i=0;i<4;i++) {\n" +
                     "           Toast.makeText(context, \"inside\" + i, Toast.LENGTH_LONG).show();\n" +
                     "        }\n" +
+                    "        for(i=0;i<4;i--) {\n" +
+                    "           Toast.makeText(context, \"inside\" + i, Toast.LENGTH_LONG).show();\n" +
+                    "        }\n" +
                     "        \n" +
                     "        File fileCheck = new File(context.getFilesDir(),\"test_file.txt\");\n" +
                     "        fileCheck.createNewFile();\n" +

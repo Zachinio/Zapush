@@ -2,16 +2,15 @@ package com.example.zapush
 
 import com.example.zapush.models.Variable
 import com.example.zapush.utils.ReflectionUtils
+import com.example.zapush.utils.ReflectionUtils.getCondition
+import com.example.zapush.utils.ReflectionUtils.getValueByExpression
 import com.example.zapush.utils.Utils
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
 import com.github.javaparser.ast.expr.*
-import com.github.javaparser.ast.stmt.BlockStmt
-import com.github.javaparser.ast.stmt.ExpressionStmt
-import com.github.javaparser.ast.stmt.IfStmt
-import com.github.javaparser.ast.stmt.Statement
+import com.github.javaparser.ast.stmt.*
 import com.github.javaparser.utils.SourceRoot
 import java.io.File
 import kotlin.io.path.Path
@@ -20,7 +19,6 @@ class Zapush {
 
     private var parse: CompilationUnit? = null
     private var foundClass: ClassOrInterfaceDeclaration? = null
-    private var foundMethod: MethodDeclaration? = null
     private var args = hashMapOf<String, Variable>()
 
     fun execute(
@@ -44,19 +42,19 @@ class Zapush {
             throw Utils.exceptionMessage("Couldn't find the class $className")
         }
 
-        foundMethod = foundClass!!.members
+        val foundMethod = foundClass!!.members
             .filterIsInstance<MethodDeclaration>()
             .find { it.nameAsString == methodName }
 
         foundMethod ?: throw Utils.exceptionMessage("Failed to find method $methodName")
 
-        addVars(vars)
-        executeLines(foundMethod!!.body.get())
+        addVars(vars, foundMethod)
+        executeLines(foundMethod.body.get())
     }
 
-    private fun addVars(vars: java.util.HashMap<String, Any>) {
+    private fun addVars(vars: java.util.HashMap<String, Any>, method: MethodDeclaration) {
         vars.iterator().forEach {
-            args[it.key] = Variable(it.key, it.value, getVariableClass(it.key, it.value))
+            args[it.key] = Variable(it.key, it.value, getVariableClass(it.key, it.value, method))
         }
         foundClass?.members?.filterIsInstance<FieldDeclaration>()?.forEach { fieldDeclaration ->
             ReflectionUtils.executeVariableDeclare(
@@ -67,8 +65,8 @@ class Zapush {
         }
     }
 
-    private fun getVariableClass(key: String, value: Any): Class<*> {
-        foundMethod!!.parameters.forEach { parameter ->
+    private fun getVariableClass(key: String, value: Any, method: MethodDeclaration): Class<*> {
+        method.parameters.forEach { parameter ->
             if (parameter.nameAsString == key) {
                 parse!!.imports.find { it.name.identifier == parameter.typeAsString }
                     ?.let {
@@ -92,6 +90,7 @@ class Zapush {
             when (codeLine) {
                 is ExpressionStmt -> executeExpression(codeLine)
                 is Statement -> executeStatement(codeLine)
+
             }
         }
     }
@@ -114,11 +113,12 @@ class Zapush {
     private fun executeStatement(statement: Statement) {
         when (statement) {
             is IfStmt -> executeIfStatement(statement)
+            is ForStmt -> executeForStatement(statement)
         }
     }
 
     private fun executeIfStatement(ifStmt: IfStmt) {
-        val condition = getCondition(ifStmt.condition)
+        val condition = getCondition(ifStmt.condition, parse!!.imports, args)
 
         if (condition) {
             if (ifStmt.thenStmt != null) {
@@ -130,23 +130,49 @@ class Zapush {
 
     }
 
-    private fun getCondition(condition: Expression): Boolean {
-        return when (condition) {
-            is NameExpr -> args[condition.nameAsString]!!.instance
-            is BooleanLiteralExpr -> condition.value
-            is MethodCallExpr -> ReflectionUtils.executeMethodCall(
-                condition,
-                args,
-                parse!!.imports
-            )
-            is EnclosedExpr -> getCondition(condition.inner)
-            is BinaryExpr -> {
-                if (condition.operator.name == "OR") {
-                    return getCondition(condition.left) || getCondition(condition.right)
+    private fun executeForStatement(statement: ForStmt) {
+        /* Init state */
+        statement.initialization.forEach { initExpr ->
+            when (initExpr) {
+                is AssignExpr -> {
+                    val value = getValueByExpression(args, initExpr.target)
+                    args[initExpr.target.asNameExpr().nameAsString] = Variable(
+                        initExpr.target.asNameExpr().nameAsString,
+                        value,
+                        if (value != null) value::class.java else null
+                    )
                 }
-                return getCondition(condition.left) && getCondition(condition.right)
             }
-            else -> throw Utils.exceptionMessage("Failed to get condition value")
-        } as Boolean
+        }
+
+        /*compare statement */
+        var result = getCondition(statement.compare.get(), parse!!.imports, args)
+        while (result) {
+            var executed = false
+            when (val updateExpr = statement.update[0]) {
+                is AssignExpr -> {
+
+                }
+                is UnaryExpr -> {
+                    var value =
+                        args[updateExpr.expression.asNameExpr().nameAsString]!!.instance as Int
+                    if (updateExpr.operator.name.contains("INCREMENT")) {
+                        value += 1
+                    } else {
+                        value -= 1
+                    }
+                    if (updateExpr.operator.isPostfix) {
+                        executed = true
+                        executeLines(statement.body.asBlockStmt())
+                    }
+                    args[updateExpr.expression.asNameExpr().nameAsString]!!.instance = value
+                }
+            }
+            if (!executed) {
+                executeLines(statement.body.asBlockStmt())
+            }
+            result = getCondition(statement.compare.get(), parse!!.imports, args)
+        }
     }
+
 }
